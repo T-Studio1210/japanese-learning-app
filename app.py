@@ -126,7 +126,7 @@ def init_gemini(api_key):
     """Gemini APIを初期化"""
     try:
         genai.configure(api_key=api_key)
-        return genai.GenerativeModel('gemini-1.5-flash')
+        return genai.GenerativeModel('gemini-pro')
     except Exception as e:
         st.error(f"API初期化エラー: {e}")
         return None
