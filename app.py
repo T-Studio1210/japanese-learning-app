@@ -1,5 +1,4 @@
 import streamlit as st
-import google.generativeai as genai
 import random
 
 # ============================================
@@ -16,13 +15,11 @@ st.set_page_config(
 # ============================================
 st.markdown("""
 <style>
-    /* 全体のフォントサイズ調整 */
     .stApp {
         max-width: 800px;
         margin: 0 auto;
     }
     
-    /* 大きな文字表示用 */
     .big-text {
         font-size: 2.5rem;
         text-align: center;
@@ -33,7 +30,6 @@ st.markdown("""
         margin: 1rem 0;
     }
     
-    /* クイズオプションボタン */
     .stButton > button {
         width: 100%;
         padding: 0.75rem;
@@ -41,7 +37,6 @@ st.markdown("""
         margin: 0.25rem 0;
     }
     
-    /* 正解/不正解の表示 */
     .correct {
         background-color: #d4edda;
         border: 2px solid #28a745;
@@ -60,7 +55,6 @@ st.markdown("""
         font-size: 1.3rem;
     }
     
-    /* フラッシュカード */
     .flashcard {
         background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
         padding: 2rem;
@@ -73,79 +67,82 @@ st.markdown("""
         font-size: 2rem;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
-    
-    /* チャットメッセージ */
-    .chat-message {
-        padding: 1rem;
-        border-radius: 10px;
-        margin: 0.5rem 0;
-    }
-    
-    .user-message {
-        background-color: #e3f2fd;
-        text-align: right;
-    }
-    
-    .ai-message {
-        background-color: #f5f5f5;
-    }
 </style>
 """, unsafe_allow_html=True)
 
 # ============================================
-# APIキー管理（ハイブリッド方式）
+# 熟語クイズデータ（事前に用意）
 # ============================================
-def get_api_key():
-    """st.secretsを優先、なければサイドバーから入力"""
-    # 1. まずst.secretsを確認
-    try:
-        api_key = st.secrets["GEMINI_API_KEY"]
-        if api_key:
-            return api_key
-    except (KeyError, FileNotFoundError):
-        pass
-    
-    # 2. Secretsにない場合、サイドバーから入力
-    with st.sidebar:
-        st.warning("⚠️ APIキーが設定されていません")
-        api_key = st.text_input(
-            "Gemini APIキーを入力",
-            type="password",
-            help="Google AI StudioでAPIキーを取得できます"
-        )
-        if api_key:
-            st.success("✅ APIキー入力済み")
-            return api_key
-    
-    return None
+QUIZ_DATA = [
+    {"word": "勉強", "correct_reading": "べんきょう", "wrong_readings": ["べんきよう", "べんきゅう", "べんこう"], "meaning_chinese": "学习 xuéxí", "example": "毎日日本語を勉強します。"},
+    {"word": "学校", "correct_reading": "がっこう", "wrong_readings": ["がくこう", "がこう", "がっこ"], "meaning_chinese": "学校 xuéxiào", "example": "学校は楽しいです。"},
+    {"word": "友達", "correct_reading": "ともだち", "wrong_readings": ["ゆうたち", "ともたち", "ゆうだち"], "meaning_chinese": "朋友 péngyou", "example": "友達と遊びます。"},
+    {"word": "先生", "correct_reading": "せんせい", "wrong_readings": ["せんしょう", "さきせい", "せいせん"], "meaning_chinese": "老师 lǎoshī", "example": "先生に質問します。"},
+    {"word": "家族", "correct_reading": "かぞく", "wrong_readings": ["いえぞく", "かそく", "けぞく"], "meaning_chinese": "家人 jiārén", "example": "家族は5人です。"},
+    {"word": "天気", "correct_reading": "てんき", "wrong_readings": ["てんけ", "あめき", "てんぎ"], "meaning_chinese": "天气 tiānqì", "example": "今日の天気はいいです。"},
+    {"word": "食事", "correct_reading": "しょくじ", "wrong_readings": ["たべじ", "しょくし", "しょくに"], "meaning_chinese": "饭/用餐 fàn", "example": "食事の時間です。"},
+    {"word": "音楽", "correct_reading": "おんがく", "wrong_readings": ["おとがく", "いんがく", "おんらく"], "meaning_chinese": "音乐 yīnyuè", "example": "音楽を聴きます。"},
+    {"word": "運動", "correct_reading": "うんどう", "wrong_readings": ["うんとう", "はこどう", "うどう"], "meaning_chinese": "运动 yùndòng", "example": "運動が好きです。"},
+    {"word": "宿題", "correct_reading": "しゅくだい", "wrong_readings": ["やどだい", "しゅくたい", "しゅだい"], "meaning_chinese": "作业 zuòyè", "example": "宿題を忘れました。"},
+    {"word": "図書館", "correct_reading": "としょかん", "wrong_readings": ["ずしょかん", "としょがん", "とうしょかん"], "meaning_chinese": "图书馆 túshūguǎn", "example": "図書館で本を読みます。"},
+    {"word": "病院", "correct_reading": "びょういん", "wrong_readings": ["やまいん", "びょいん", "びょうえん"], "meaning_chinese": "医院 yīyuàn", "example": "病院に行きます。"},
+    {"word": "電車", "correct_reading": "でんしゃ", "wrong_readings": ["でんくるま", "でんしや", "てんしゃ"], "meaning_chinese": "电车 diànchē", "example": "電車で学校に行きます。"},
+    {"word": "買物", "correct_reading": "かいもの", "wrong_readings": ["ばいもの", "かいぶつ", "かいもつ"], "meaning_chinese": "购物 gòuwù", "example": "買物に行きましょう。"},
+    {"word": "料理", "correct_reading": "りょうり", "wrong_readings": ["りょうに", "りょり", "りようり"], "meaning_chinese": "料理 liàolǐ", "example": "母は料理が上手です。"},
+    {"word": "映画", "correct_reading": "えいが", "wrong_readings": ["えが", "えいか", "ようが"], "meaning_chinese": "电影 diànyǐng", "example": "映画を見ます。"},
+    {"word": "写真", "correct_reading": "しゃしん", "wrong_readings": ["しゃじん", "かきしん", "しゃちん"], "meaning_chinese": "照片 zhàopiàn", "example": "写真を撮ります。"},
+    {"word": "新聞", "correct_reading": "しんぶん", "wrong_readings": ["しんもん", "あらぶん", "しんぷん"], "meaning_chinese": "报纸 bàozhǐ", "example": "新聞を読みます。"},
+    {"word": "野菜", "correct_reading": "やさい", "wrong_readings": ["のさい", "やさき", "のなさい"], "meaning_chinese": "蔬菜 shūcài", "example": "野菜を食べます。"},
+    {"word": "果物", "correct_reading": "くだもの", "wrong_readings": ["かぶつ", "はたもの", "くだぶつ"], "meaning_chinese": "水果 shuǐguǒ", "example": "果物が好きです。"},
+]
 
 # ============================================
-# Gemini API初期化
+# 間違い探しデータ
 # ============================================
-def init_gemini(api_key):
-    """Gemini APIを初期化"""
-    try:
-        genai.configure(api_key=api_key)
-        return genai.GenerativeModel('gemini-1.5-flash')
-    except Exception as e:
-        st.error(f"API初期化エラー: {e}")
-        return None
+MISTAKE_DATA = [
+    {"sentence": "わたしは学校が行きます。", "mistake": "が", "correct": "に", "explanation": "「行く」是移动动词，应该用「に」表示目的地。"},
+    {"sentence": "りんごは赤くいです。", "mistake": "くい", "correct": "い", "explanation": "形容词「赤い」不需要加「く」。正确是「赤いです」。"},
+    {"sentence": "本を読むのが好きいです。", "mistake": "好きい", "correct": "好き", "explanation": "「好き」是な形容词，不需要加「い」。"},
+    {"sentence": "昨日、友達を会いました。", "mistake": "を", "correct": "に", "explanation": "「会う」用「に」表示见面的对象，不用「を」。"},
+    {"sentence": "この本は面白です。", "mistake": "面白", "correct": "面白い", "explanation": "「面白い」是い形容词，需要「い」结尾。"},
+    {"sentence": "日本語を話すことがでます。", "mistake": "でます", "correct": "できます", "explanation": "「できる」的ます形是「できます」，不是「でます」。"},
+    {"sentence": "彼女は歌を上手です。", "mistake": "を", "correct": "が", "explanation": "「上手」前面用「が」，不用「を」。"},
+    {"sentence": "今日は暑いなので、アイスを食べます。", "mistake": "暑いな", "correct": "暑い", "explanation": "い形容词后面直接加「ので」，不需要「な」。"},
+]
+
+# ============================================
+# フラッシュカードデータ
+# ============================================
+FLASHCARDS = [
+    {"word": "学校", "reading": "がっこう", "meaning": "学校 xuéxiào", "example": "学校に行きます。"},
+    {"word": "友達", "reading": "ともだち", "meaning": "朋友 péngyou", "example": "友達と遊びます。"},
+    {"word": "先生", "reading": "せんせい", "meaning": "老师 lǎoshī", "example": "先生に質問します。"},
+    {"word": "勉強", "reading": "べんきょう", "meaning": "学习 xuéxí", "example": "日本語を勉強します。"},
+    {"word": "家族", "reading": "かぞく", "meaning": "家人 jiārén", "example": "家族は5人です。"},
+    {"word": "天気", "reading": "てんき", "meaning": "天气 tiānqì", "example": "今日の天気はいいです。"},
+    {"word": "食事", "reading": "しょくじ", "meaning": "饭/用餐 fàn", "example": "食事の時間です。"},
+    {"word": "音楽", "reading": "おんがく", "meaning": "音乐 yīnyuè", "example": "音楽を聴きます。"},
+    {"word": "運動", "reading": "うんどう", "meaning": "运动 yùndòng", "example": "運動が好きです。"},
+    {"word": "宿題", "reading": "しゅくだい", "meaning": "作业 zuòyè", "example": "宿題を忘れました。"},
+]
 
 # ============================================
 # セッション状態の初期化
 # ============================================
-if "quiz_data" not in st.session_state:
-    st.session_state.quiz_data = None
+if "quiz_index" not in st.session_state:
+    st.session_state.quiz_index = random.randint(0, len(QUIZ_DATA) - 1)
 if "quiz_answered" not in st.session_state:
     st.session_state.quiz_answered = False
 if "score" not in st.session_state:
     st.session_state.score = {"correct": 0, "total": 0}
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
 if "flashcard_index" not in st.session_state:
     st.session_state.flashcard_index = 0
 if "flashcard_show_answer" not in st.session_state:
     st.session_state.flashcard_show_answer = False
+if "mistake_index" not in st.session_state:
+    st.session_state.mistake_index = random.randint(0, len(MISTAKE_DATA) - 1)
+if "mistake_answered" not in st.session_state:
+    st.session_state.mistake_answered = False
 
 # ============================================
 # メイン
@@ -153,15 +150,12 @@ if "flashcard_show_answer" not in st.session_state:
 st.title("📚 日本語学習アプリ")
 st.caption("中国の小学生のための日本語練習 🇨🇳➡️🇯🇵")
 
-# APIキー取得
-api_key = get_api_key()
-
 # サイドバー：モード選択
 with st.sidebar:
     st.header("🎮 モードを選ぼう")
     mode = st.radio(
         "学習モード",
-        ["🎯 熟語クイズ", "🤖 先生AIチャット", "🔍 間違い探し", "📖 フラッシュカード"],
+        ["🎯 熟語クイズ", "🔍 間違い探し", "📖 フラッシュカード"],
         label_visibility="collapsed"
     )
     
@@ -172,6 +166,9 @@ with st.sidebar:
         correct = st.session_state.score["correct"]
         total = st.session_state.score["total"]
         st.metric("今日のスコア", f"{correct}/{total}", f"{int(correct/total*100)}%")
+    
+    st.divider()
+    st.caption("🚀 API不要！オフラインで動作")
 
 # ============================================
 # 熟語クイズモード
@@ -180,136 +177,46 @@ if mode == "🎯 熟語クイズ":
     st.header("🎯 熟語クイズ")
     st.write("正しい読み方を選んでね！")
     
-    if not api_key:
-        st.info("👈 左のサイドバーからAPIキーを入力してください")
-    else:
-        model = init_gemini(api_key)
-        
-        if model:
-            # 新しい問題を生成
-            if st.button("🆕 新しい問題", use_container_width=True) or st.session_state.quiz_data is None:
-                with st.spinner("問題を作っています..."):
-                    try:
-                        prompt = """
-あなたは日本語教師です。中国人小学生向けに熟語クイズを1問作ってください。
-
-以下の形式でJSONで出力してください（他の文字は一切不要）：
-{
-    "word": "漢字の熟語（2-3文字）",
-    "correct_reading": "正しい読み方（ひらがな）",
-    "wrong_readings": ["間違い1", "間違い2", "間違い3"],
-    "meaning_chinese": "中国語での意味",
-    "example_sentence": "例文（ふりがな付き）"
-}
-
-難易度は小学5年生レベルで。
-"""
-                        response = model.generate_content(prompt)
-                        # JSONを抽出
-                        import json
-                        text = response.text.strip()
-                        # ```json と ``` を除去
-                        if "```json" in text:
-                            text = text.split("```json")[1].split("```")[0]
-                        elif "```" in text:
-                            text = text.split("```")[1].split("```")[0]
-                        
-                        quiz_data = json.loads(text.strip())
-                        st.session_state.quiz_data = quiz_data
-                        st.session_state.quiz_answered = False
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"問題生成エラー: {e}")
-            
-            # クイズを表示
-            if st.session_state.quiz_data:
-                quiz = st.session_state.quiz_data
-                
-                # 熟語を大きく表示
-                st.markdown(f'<div class="big-text">{quiz["word"]}</div>', unsafe_allow_html=True)
-                st.caption(f"🇨🇳 中国語: {quiz.get('meaning_chinese', '')}")
-                
-                if not st.session_state.quiz_answered:
-                    # 選択肢を作成（シャッフル）
-                    options = [quiz["correct_reading"]] + quiz["wrong_readings"]
-                    random.shuffle(options)
-                    
-                    st.write("**この熟語の読み方は？**")
-                    
-                    cols = st.columns(2)
-                    for i, option in enumerate(options):
-                        with cols[i % 2]:
-                            if st.button(option, key=f"opt_{i}", use_container_width=True):
-                                st.session_state.quiz_answered = True
-                                st.session_state.score["total"] += 1
-                                
-                                if option == quiz["correct_reading"]:
-                                    st.session_state.score["correct"] += 1
-                                    st.session_state.last_result = "correct"
-                                else:
-                                    st.session_state.last_result = "incorrect"
-                                st.rerun()
-                else:
-                    # 結果表示
-                    if st.session_state.get("last_result") == "correct":
-                        st.markdown('<div class="correct">🎉 正解！すごい！</div>', unsafe_allow_html=True)
-                    else:
-                        st.markdown(f'<div class="incorrect">😢 残念... 正解は「{quiz["correct_reading"]}」</div>', unsafe_allow_html=True)
-                    
-                    st.info(f"📝 例文: {quiz.get('example_sentence', '')}")
-
-# ============================================
-# 先生AIチャットモード
-# ============================================
-elif mode == "🤖 先生AIチャット":
-    st.header("🤖 先生AIに質問しよう")
-    st.write("日本語について何でも聞いてね！")
+    # 新しい問題ボタン
+    if st.button("🆕 新しい問題", use_container_width=True):
+        st.session_state.quiz_index = random.randint(0, len(QUIZ_DATA) - 1)
+        st.session_state.quiz_answered = False
+        st.rerun()
     
-    if not api_key:
-        st.info("👈 左のサイドバーからAPIキーを入力してください")
-    else:
-        model = init_gemini(api_key)
+    quiz = QUIZ_DATA[st.session_state.quiz_index]
+    
+    # 熟語を大きく表示
+    st.markdown(f'<div class="big-text">{quiz["word"]}</div>', unsafe_allow_html=True)
+    st.caption(f"🇨🇳 中国語: {quiz['meaning_chinese']}")
+    
+    if not st.session_state.quiz_answered:
+        # 選択肢を作成（シャッフル）
+        options = [quiz["correct_reading"]] + quiz["wrong_readings"]
+        random.shuffle(options)
         
-        if model:
-            # チャット履歴表示
-            for msg in st.session_state.chat_history:
-                if msg["role"] == "user":
-                    st.markdown(f'<div class="chat-message user-message">👤 {msg["content"]}</div>', unsafe_allow_html=True)
-                else:
-                    st.markdown(f'<div class="chat-message ai-message">🤖 {msg["content"]}</div>', unsafe_allow_html=True)
-            
-            # 入力フォーム
-            user_input = st.chat_input("質問を入力してね...")
-            
-            if user_input:
-                # ユーザーメッセージを追加
-                st.session_state.chat_history.append({"role": "user", "content": user_input})
-                
-                # AIの応答を生成
-                with st.spinner("考え中..."):
-                    try:
-                        system_prompt = """
-あなたは優しい日本語の先生です。中国人の小学5年生に日本語を教えています。
-以下のルールを守ってください：
-1. 簡単な日本語で説明する
-2. 必要に応じて中国語での説明も加える
-3. 例文を使って分かりやすく教える
-4. 励ましの言葉を入れる
-5. 長すぎる回答は避ける（3-5文程度）
-"""
-                        full_prompt = f"{system_prompt}\n\n生徒の質問: {user_input}"
-                        response = model.generate_content(full_prompt)
-                        ai_response = response.text
-                        
-                        st.session_state.chat_history.append({"role": "ai", "content": ai_response})
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"エラー: {e}")
-            
-            # クリアボタン
-            if st.button("🗑️ チャットをクリア"):
-                st.session_state.chat_history = []
-                st.rerun()
+        st.write("**この熟語の読み方は？**")
+        
+        cols = st.columns(2)
+        for i, option in enumerate(options):
+            with cols[i % 2]:
+                if st.button(option, key=f"opt_{i}", use_container_width=True):
+                    st.session_state.quiz_answered = True
+                    st.session_state.score["total"] += 1
+                    
+                    if option == quiz["correct_reading"]:
+                        st.session_state.score["correct"] += 1
+                        st.session_state.last_result = "correct"
+                    else:
+                        st.session_state.last_result = "incorrect"
+                    st.rerun()
+    else:
+        # 結果表示
+        if st.session_state.get("last_result") == "correct":
+            st.markdown('<div class="correct">🎉 正解！すごい！</div>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div class="incorrect">😢 残念... 正解は「{quiz["correct_reading"]}」</div>', unsafe_allow_html=True)
+        
+        st.info(f"📝 例文: {quiz['example']}")
 
 # ============================================
 # 間違い探しモード
@@ -318,74 +225,36 @@ elif mode == "🔍 間違い探し":
     st.header("🔍 間違い探し")
     st.write("文の中の間違いを見つけてね！")
     
-    if not api_key:
-        st.info("👈 左のサイドバーからAPIキーを入力してください")
-    else:
-        model = init_gemini(api_key)
+    if st.button("🆕 新しい問題", use_container_width=True):
+        st.session_state.mistake_index = random.randint(0, len(MISTAKE_DATA) - 1)
+        st.session_state.mistake_answered = False
+        st.rerun()
+    
+    data = MISTAKE_DATA[st.session_state.mistake_index]
+    
+    st.markdown(f'<div class="big-text" style="font-size: 1.5rem;">{data["sentence"]}</div>', unsafe_allow_html=True)
+    
+    if not st.session_state.mistake_answered:
+        user_answer = st.text_input("間違いはどこ？（間違っている部分を入力）")
         
-        if model:
-            if "mistake_data" not in st.session_state:
-                st.session_state.mistake_data = None
-            if "mistake_answered" not in st.session_state:
-                st.session_state.mistake_answered = False
+        if st.button("答え合わせ", use_container_width=True):
+            st.session_state.mistake_answered = True
+            st.session_state.score["total"] += 1
             
-            if st.button("🆕 新しい問題", use_container_width=True) or st.session_state.mistake_data is None:
-                with st.spinner("問題を作っています..."):
-                    try:
-                        prompt = """
-中国人小学生向けの「間違い探し」問題を1つ作ってください。
-日本語の文章の中に1つだけ間違いがあります。
-
-以下の形式でJSONで出力（他の文字は不要）：
-{
-    "sentence": "間違いを含む文（15-25文字）",
-    "mistake": "間違っている部分",
-    "correct": "正しい表現",
-    "explanation": "なぜ間違いなのか（中国語で簡単に説明）"
-}
-
-間違いの種類：助詞の間違い、送り仮名の間違い、漢字の読み間違いなど
-"""
-                        response = model.generate_content(prompt)
-                        import json
-                        text = response.text.strip()
-                        if "```json" in text:
-                            text = text.split("```json")[1].split("```")[0]
-                        elif "```" in text:
-                            text = text.split("```")[1].split("```")[0]
-                        
-                        st.session_state.mistake_data = json.loads(text.strip())
-                        st.session_state.mistake_answered = False
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"問題生成エラー: {e}")
-            
-            if st.session_state.mistake_data:
-                data = st.session_state.mistake_data
-                
-                st.markdown(f'<div class="big-text" style="font-size: 1.5rem;">{data["sentence"]}</div>', unsafe_allow_html=True)
-                
-                if not st.session_state.mistake_answered:
-                    user_answer = st.text_input("間違いはどこ？（間違っている部分を入力）")
-                    
-                    if st.button("答え合わせ", use_container_width=True):
-                        st.session_state.mistake_answered = True
-                        st.session_state.score["total"] += 1
-                        
-                        if user_answer.strip() == data["mistake"]:
-                            st.session_state.score["correct"] += 1
-                            st.session_state.mistake_result = "correct"
-                        else:
-                            st.session_state.mistake_result = "incorrect"
-                        st.rerun()
-                else:
-                    if st.session_state.get("mistake_result") == "correct":
-                        st.markdown('<div class="correct">🎉 正解！よく見つけたね！</div>', unsafe_allow_html=True)
-                    else:
-                        st.markdown(f'<div class="incorrect">😢 残念... 間違いは「{data["mistake"]}」</div>', unsafe_allow_html=True)
-                    
-                    st.success(f"✅ 正しくは: {data['correct']}")
-                    st.info(f"📖 説明: {data['explanation']}")
+            if user_answer.strip() == data["mistake"]:
+                st.session_state.score["correct"] += 1
+                st.session_state.mistake_result = "correct"
+            else:
+                st.session_state.mistake_result = "incorrect"
+            st.rerun()
+    else:
+        if st.session_state.get("mistake_result") == "correct":
+            st.markdown('<div class="correct">🎉 正解！よく見つけたね！</div>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div class="incorrect">😢 残念... 間違いは「{data["mistake"]}」</div>', unsafe_allow_html=True)
+        
+        st.success(f"✅ 正しくは: {data['correct']}")
+        st.info(f"📖 説明: {data['explanation']}")
 
 # ============================================
 # フラッシュカードモード
@@ -394,22 +263,8 @@ elif mode == "📖 フラッシュカード":
     st.header("📖 フラッシュカード")
     st.write("単語を覚えよう！")
     
-    # 事前に用意した単語リスト（API不要）
-    flashcards = [
-        {"word": "学校", "reading": "がっこう", "meaning": "学校 xuéxiào", "example": "学校に行きます。"},
-        {"word": "友達", "reading": "ともだち", "meaning": "朋友 péngyou", "example": "友達と遊びます。"},
-        {"word": "先生", "reading": "せんせい", "meaning": "老师 lǎoshī", "example": "先生に質問します。"},
-        {"word": "勉強", "reading": "べんきょう", "meaning": "学习 xuéxí", "example": "日本語を勉強します。"},
-        {"word": "家族", "reading": "かぞく", "meaning": "家人 jiārén", "example": "家族は5人です。"},
-        {"word": "天気", "reading": "てんき", "meaning": "天气 tiānqì", "example": "今日の天気はいいです。"},
-        {"word": "食事", "reading": "しょくじ", "meaning": "饭/用餐 fàn", "example": "食事の時間です。"},
-        {"word": "音楽", "reading": "おんがく", "meaning": "音乐 yīnyuè", "example": "音楽を聴きます。"},
-        {"word": "運動", "reading": "うんどう", "meaning": "运动 yùndòng", "example": "運動が好きです。"},
-        {"word": "宿題", "reading": "しゅくだい", "meaning": "作业 zuòyè", "example": "宿題を忘れました。"},
-    ]
-    
-    idx = st.session_state.flashcard_index % len(flashcards)
-    card = flashcards[idx]
+    idx = st.session_state.flashcard_index % len(FLASHCARDS)
+    card = FLASHCARDS[idx]
     
     # カード表示
     if not st.session_state.flashcard_show_answer:
@@ -433,8 +288,8 @@ elif mode == "📖 フラッシュカード":
             st.rerun()
     
     # 進捗
-    st.progress((idx + 1) / len(flashcards))
-    st.caption(f"カード {idx + 1} / {len(flashcards)}")
+    st.progress((idx + 1) / len(FLASHCARDS))
+    st.caption(f"カード {idx + 1} / {len(FLASHCARDS)}")
 
 # ============================================
 # フッター
