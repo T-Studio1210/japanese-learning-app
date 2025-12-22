@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: nanamitool-japanese-learning
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0
+    envVars:
+      - key: GROQ_API_KEY
+        value: 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
