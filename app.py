@@ -19,61 +19,174 @@ st.set_page_config(
 )
 
 # ============================================
-# カスタムCSS（スマホ対応）
+# カスタムCSS（nanamitoolスタイル）
 # ============================================
 st.markdown("""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700&display=swap');
+    
+    /* 全体のスタイル */
     .stApp {
-        max-width: 800px;
-        margin: 0 auto;
+        font-family: 'Noto Sans JP', sans-serif !important;
+        background: linear-gradient(135deg, #ffffff 0%, #fce4ec 40%, #f8bbd9 100%) !important;
     }
     
+    /* メインコンテナ */
+    .main .block-container {
+        max-width: 800px;
+        padding: 1rem 1rem 3rem 1rem;
+    }
+    
+    /* ヘッダー */
+    header[data-testid="stHeader"] {
+        background: rgba(255, 255, 255, 0.95) !important;
+        border-bottom: 1px solid #f8bbd9;
+    }
+    
+    /* サイドバー */
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #ffffff 0%, #fce4ec 100%) !important;
+        border-right: 1px solid #f8bbd9;
+    }
+    
+    section[data-testid="stSidebar"] .stRadio > label {
+        color: #4a2040 !important;
+        font-weight: 500;
+    }
+    
+    /* タイトル */
+    h1, h2, h3 {
+        color: #e91e8c !important;
+        font-weight: 700 !important;
+    }
+    
+    /* 大きな文字表示（熟語など） */
     .big-text {
         font-size: 2.5rem;
         text-align: center;
-        padding: 1rem;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 1.5rem;
+        background: linear-gradient(135deg, #e91e8c 0%, #c4177a 100%);
         color: white;
-        border-radius: 10px;
+        border-radius: 16px;
         margin: 1rem 0;
+        box-shadow: 0 4px 16px rgba(233, 30, 140, 0.25);
+        font-weight: 700;
     }
     
+    /* ボタン */
     .stButton > button {
         width: 100%;
-        padding: 0.75rem;
-        font-size: 1.1rem;
+        padding: 0.85rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 600;
         margin: 0.25rem 0;
+        background: linear-gradient(135deg, #e91e8c 0%, #c4177a 100%) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 12px !important;
+        box-shadow: 0 2px 8px rgba(233, 30, 140, 0.25);
+        transition: all 0.2s ease;
     }
     
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(233, 30, 140, 0.35);
+    }
+    
+    .stButton > button:active {
+        transform: scale(0.98);
+    }
+    
+    /* 正解・不正解 */
     .correct {
-        background-color: #d4edda;
-        border: 2px solid #28a745;
-        padding: 1rem;
-        border-radius: 10px;
+        background: rgba(76, 175, 80, 0.15);
+        border: 2px solid #4caf50;
+        padding: 1.2rem;
+        border-radius: 16px;
         text-align: center;
-        font-size: 1.3rem;
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #2e7d32;
     }
     
     .incorrect {
-        background-color: #f8d7da;
-        border: 2px solid #dc3545;
-        padding: 1rem;
-        border-radius: 10px;
+        background: rgba(244, 67, 54, 0.15);
+        border: 2px solid #f44336;
+        padding: 1.2rem;
+        border-radius: 16px;
         text-align: center;
-        font-size: 1.3rem;
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #c62828;
     }
     
+    /* フラッシュカード */
     .flashcard {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        background: linear-gradient(135deg, #ffffff 0%, #fce4ec 100%);
         padding: 2rem;
-        border-radius: 15px;
+        border-radius: 16px;
         text-align: center;
         min-height: 150px;
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 2rem;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        font-weight: 700;
+        color: #4a2040;
+        box-shadow: 0 4px 16px rgba(233, 30, 140, 0.15);
+        border: 1px solid #f8bbd9;
+    }
+    
+    /* 入力フィールド */
+    .stTextInput > div > div > input {
+        border: 2px solid #f8bbd9 !important;
+        border-radius: 12px !important;
+        padding: 0.75rem 1rem !important;
+        font-size: 1rem !important;
+        transition: all 0.2s;
+    }
+    
+    .stTextInput > div > div > input:focus {
+        border-color: #e91e8c !important;
+        box-shadow: 0 0 0 3px rgba(233, 30, 140, 0.15) !important;
+    }
+    
+    /* スライダー */
+    .stSlider > div > div > div {
+        background: linear-gradient(135deg, #e91e8c 0%, #f48fb1 100%) !important;
+    }
+    
+    /* 情報ボックス */
+    .stAlert {
+        border-radius: 12px !important;
+    }
+    
+    /* 区切り線 */
+    hr {
+        border-color: #f8bbd9 !important;
+    }
+    
+    /* プログレスバー */
+    .stProgress > div > div > div {
+        background: linear-gradient(135deg, #e91e8c 0%, #f48fb1 100%) !important;
+    }
+    
+    /* キャプション */
+    .stCaption {
+        color: #9c6b8a !important;
+    }
+    
+    /* スマホ対応 */
+    @media (max-width: 768px) {
+        .big-text {
+            font-size: 2rem;
+            padding: 1rem;
+        }
+        
+        .flashcard {
+            font-size: 1.5rem;
+            min-height: 120px;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -175,7 +288,7 @@ with st.sidebar:
         st.metric("今日のスコア", f"{correct}/{total}", f"{int(correct/total*100)}%")
     
     st.divider()
-    st.caption("🚀 オフライン対応！いつでも使える")
+    st.caption("🤖 AI搭載！いつでも学習サポート")
 
 # ============================================
 # 熟語クイズモード
